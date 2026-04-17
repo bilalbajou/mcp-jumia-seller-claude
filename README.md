@@ -30,9 +30,9 @@ JUMIA_REFRESH_TOKEN=your_refresh_token
 ### Option 1 — Commande CLI (recommandée)
 
 ```bash
-claude mcp add jumia-seller \
-  --env JUMIA_CLIENT_ID=your_client_id \
-  --env JUMIA_REFRESH_TOKEN=your_refresh_token \
+claude mcp add jumia-seller 
+  --env JUMIA_CLIENT_ID=your_client_id 
+  --env JUMIA_REFRESH_TOKEN=your_refresh_token 
   python "d:/own project/mcp-jumia-seller/server.py"
 ```
 
