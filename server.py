@@ -17,7 +17,7 @@ JUMIA_REFRESH_TOKEN = os.getenv("JUMIA_REFRESH_TOKEN")
 # Initialize FastMCP server
 mcp = FastMCP("jumia-claude-mcp")
 
-# 1. Un cache token en mémoire (_token_cache)
+# 1. In-memory token cache (_token_cache)
 class TokenCache:
     def __init__(self, refresh_token: Optional[str]):
         self.access_token: Optional[str] = None
@@ -29,7 +29,7 @@ class TokenCache:
 
 _token_cache = TokenCache(JUMIA_REFRESH_TOKEN)
 
-# 4. Fonction de gestion des erreurs avec messages clairs
+# 4. Error handling function with clear messages
 def _handle_http_error(response: httpx.Response) -> None:
     if response.is_success:
         return
@@ -42,35 +42,35 @@ def _handle_http_error(response: httpx.Response) -> None:
         message = response.text
 
     error_mappings = {
-        400: "Bad Request (400): La requête est invalide ou mal formatée.",
-        401: "Unauthorized (401): Échec d'authentification. Vérifiez les credentials.",
-        403: "Forbidden (403): Vous n'avez pas les droits pour cette action.",
-        404: "Not Found (404): La ressource demandée n'existe pas.",
-        422: "Unprocessable Entity (422): Erreur de validation des données envoyées.",
-        429: "Too Many Requests (429): Limite d'appels API atteinte (Rate Limiting).",
-        500: "Internal Server Error (500): Erreur interne du serveur Jumia.",
-        501: "Not Implemented (501): Fonctionnalité non implémentée par l'API."
+        400: "Bad Request (400): The request is invalid or malformed.",
+        401: "Unauthorized (401): Authentication failed. Check your credentials.",
+        403: "Forbidden (403): You do not have permission for this action.",
+        404: "Not Found (404): The requested resource does not exist.",
+        422: "Unprocessable Entity (422): Data validation error for the sent payload.",
+        429: "Too Many Requests (429): API call limit reached (Rate Limiting).",
+        500: "Internal Server Error (500): Internal error on the Jumia server.",
+        501: "Not Implemented (501): Feature not implemented by the API."
     }
 
-    error_msg = error_mappings.get(status, f"Erreur HTTP {status}")
-    raise Exception(f"{error_msg} Détails: {message}")
+    error_msg = error_mappings.get(status, f"HTTP Error {status}")
+    raise Exception(f"{error_msg} Details: {message}")
 
-# 2. Fonction async pour obtenir et gérer l'accès au token
+# 2. Async function to retrieve and manage token access
 async def get_access_token() -> str:
     global _token_cache
     
     current_refresh_token = _token_cache.refresh_token
     if not JUMIA_CLIENT_ID or not current_refresh_token:
-        raise Exception("JUMIA_CLIENT_ID et JUMIA_REFRESH_TOKEN sont requis dans le fichier .env")
+        raise Exception("JUMIA_CLIENT_ID and JUMIA_REFRESH_TOKEN are required in the .env file")
         
     now = time.time()
     
-    # Retourne le token en cache s'il est encore valide (marge de 60s)
+    # Return cached token if it's still valid (60s margin)
     if _token_cache.access_token and _token_cache.expires_at > now + 60:
         return _token_cache.access_token
         
     async with httpx.AsyncClient() as client:
-        # Appel POST /token pour le renouveler
+        # POST /token call to refresh it
         response = await client.post(
             f"{JUMIA_BASE_URL}/token",
             data={
@@ -85,20 +85,20 @@ async def get_access_token() -> str:
         token_data = response.json()
         
         _token_cache.access_token = token_data.get("access_token")
-        # expires_in est le délai d'expiration fourni par Jumia (généralement en secondes)
+        # expires_in is the expiration time provided by Jumia (usually in seconds)
         _token_cache.expires_at = now + token_data.get("expires_in", 3600)
         
-        # Sauvegarde du nouveau refresh_token retourné
+        # Save the new returned refresh_token
         if "refresh_token" in token_data:
             _token_cache.refresh_token = token_data["refresh_token"]
             
         return _token_cache.access_token
 
-# Fonction interne pour centraliser l'appel API
+# Internal function to centralize API calls
 async def _api_request(method: str, endpoint: str, **kwargs) -> Any:
     token = await get_access_token()
     headers = kwargs.pop("headers", {})
-    # Ajout automatique du header Authorization
+    # Automatically add the Authorization header
     headers["Authorization"] = f"Bearer {token}"
     
     url = f"{JUMIA_BASE_URL}{endpoint}"
@@ -112,7 +112,7 @@ async def _api_request(method: str, endpoint: str, **kwargs) -> Any:
         except Exception:
             return response.text
 
-# 3. Fonctions utilitaires
+# 3. Utility functions
 async def api_get(endpoint: str, **kwargs) -> Any:
     return await _api_request("GET", endpoint, **kwargs)
 
@@ -130,9 +130,9 @@ async def api_patch(endpoint: str, **kwargs) -> Any:
 @mcp.tool()
 async def jumia_get_shops() -> str:
     """
-    Récupère la liste des boutiques Jumia (shops) associées au compte.
-    Aucun paramètre n'est requis.
-    Retourne les détails des boutiques tels que l'ID, le nom, l'email et les Business Clients.
+    Retrieves the list of Jumia shops associated with the account.
+    No parameters are required.
+    Returns shop details such as ID, name, email, and Business Clients.
     [readOnlyHint: true]
     """
     result = await api_get("/shops")
@@ -141,9 +141,9 @@ async def jumia_get_shops() -> str:
 @mcp.tool()
 async def jumia_get_all_master_shops() -> str:
     """
-    Récupère toutes les boutiques d'une boutique principale (master shop),
-    incluant les boutiques réparties sur plusieurs pays.
-    Aucun paramètre n'est requis.
+    Retrieves all shops of a master shop,
+    including shops spread across multiple countries.
+    No parameters are required.
     [readOnlyHint: true]
     """
     result = await api_get("/shops-of-master-shop")
@@ -151,11 +151,11 @@ async def jumia_get_all_master_shops() -> str:
 
 @mcp.tool()
 async def jumia_get_brands(
-    page: int = Field(default=1, description="Numéro de la page")
+    page: int = Field(default=1, description="Page number")
 ) -> str:
     """
-    Récupère la liste des marques Jumia.
-    Retourne : current_page, total_pages, brands[]
+    Retrieves the list of Jumia brands.
+    Returns: current_page, total_pages, brands[]
     [readOnlyHint: true]
     """
     params = {"page": page}
@@ -164,12 +164,12 @@ async def jumia_get_brands(
 
 @mcp.tool()
 async def jumia_get_categories(
-    page: int = Field(default=1, description="Numéro de la page"),
-    attribute_set_name: Optional[str] = Field(default=None, description="Filtrer par nom de set d'attributs")
+    page: int = Field(default=1, description="Page number"),
+    attribute_set_name: Optional[str] = Field(default=None, description="Filter by attribute set name")
 ) -> str:
     """
-    Récupère la liste des catégories Jumia.
-    Retourne : current_page, total_pages, categories[]
+    Retrieves the list of Jumia categories.
+    Returns: current_page, total_pages, categories[]
     [readOnlyHint: true]
     """
     params = {"page": page}
@@ -180,11 +180,11 @@ async def jumia_get_categories(
 
 @mcp.tool()
 async def jumia_get_attributes(
-    attribute_set_id: str = Field(..., description="UUID de l'attribute set (requis)")
+    attribute_set_id: str = Field(..., description="UUID of the attribute set (required)")
 ) -> str:
     """
-    Récupère la liste des attributs pour un attribute set donné.
-    Retourne la liste des attributs avec code, type, mandatory, options...
+    Retrieves the list of attributes for a given attribute set.
+    Returns the attribute list including code, type, mandatory, options...
     [readOnlyHint: true]
     """
     result = await api_get(f"/catalog/attribute-sets/{attribute_set_id}")
@@ -192,17 +192,17 @@ async def jumia_get_attributes(
 
 @mcp.tool()
 async def jumia_get_products(
-    token: Optional[str] = Field(default=None, description="Token pour la pagination (nextToken)"),
-    size: int = Field(default=10, ge=1, le=100, description="Taille de la page (1-100)"),
-    seller_sku: Optional[str] = Field(default=None, description="Filtrer par SKU vendeur"),
-    shop_id: Optional[str] = Field(default=None, description="Filtrer par identifiant Shop"),
-    category_code: Optional[str] = Field(default=None, description="Filtrer par Category Code"),
-    created_at_from: Optional[str] = Field(default=None, description="Date de création (début)"),
-    created_at_to: Optional[str] = Field(default=None, description="Date de création (fin)")
+    token: Optional[str] = Field(default=None, description="Token for pagination (nextToken)"),
+    size: int = Field(default=10, ge=1, le=100, description="Page size (1-100)"),
+    seller_sku: Optional[str] = Field(default=None, description="Filter by seller SKU"),
+    shop_id: Optional[str] = Field(default=None, description="Filter by Shop ID"),
+    category_code: Optional[str] = Field(default=None, description="Filter by Category Code"),
+    created_at_from: Optional[str] = Field(default=None, description="Creation date (start)"),
+    created_at_to: Optional[str] = Field(default=None, description="Creation date (end)")
 ) -> str:
     """
-    Récupère la liste des produits du catalogue Jumia.
-    Retourne : products[], nextToken, isLastPage
+    Retrieves the list of products from the Jumia catalog.
+    Returns: products[], nextToken, isLastPage
     [readOnlyHint: true]
     """
     params: Dict[str, Any] = {"size": size}
@@ -218,13 +218,13 @@ async def jumia_get_products(
 
 @mcp.tool()
 async def jumia_get_stock(
-    size: int = Field(default=10, ge=1, le=100, description="Taille de la page (1-100)"),
-    token: Optional[str] = Field(default=None, description="Token de pagination"),
-    product_sids: Optional[List[str]] = Field(default=None, description="Liste de Product SIDs")
+    size: int = Field(default=10, ge=1, le=100, description="Page size (1-100)"),
+    token: Optional[str] = Field(default=None, description="Pagination token"),
+    product_sids: Optional[List[str]] = Field(default=None, description="List of Product SIDs")
 ) -> str:
     """
-    Récupère le stock des produits du catalogue Jumia.
-    Retourne : products[], nextToken, isLastPage
+    Retrieves the stock of products from the Jumia catalog.
+    Returns: products[], nextToken, isLastPage
     [readOnlyHint: true]
     """
     params: Dict[str, Any] = {"size": size}
@@ -236,11 +236,11 @@ async def jumia_get_stock(
 
 @mcp.tool()
 async def jumia_get_feed_status(
-    feed_id: str = Field(..., description="UUID du feed (requis)")
+    feed_id: str = Field(..., description="UUID of the feed (required)")
 ) -> str:
     """
-    Récupère le statut d'un feed.
-    Retourne : status, feedType, total, completed, failed, feedItems[]
+    Retrieves the status of a feed.
+    Returns: status, feedType, total, completed, failed, feedItems[]
     [readOnlyHint: true]
     """
     result = await api_get(f"/feeds/{feed_id}")
@@ -248,32 +248,32 @@ async def jumia_get_feed_status(
 
 @mcp.tool()
 async def jumia_create_products(
-    shop_id: str = Field(..., description="UUID de la boutique"),
-    products: List[Dict[str, Any]] = Field(..., description="Liste des produits à créer (max 1000)")
+    shop_id: str = Field(..., description="Shop UUID"),
+    products: List[Dict[str, Any]] = Field(..., description="List of products to create (max 1000)")
 ) -> str:
     """
-    Crée de nouveaux produits via un feed.
-    Retourne l'ID du feed (+ un message de suggestion pour surveiller avec jumia_get_feed_status).
+    Creates new products via a feed.
+    Returns the feed ID (+ a suggestion message to monitor with jumia_get_feed_status).
     [readOnlyHint: false]
     """
     if len(products) > 1000:
-        raise ValueError("La liste 'products' ne peut pas contenir plus de 1000 éléments.")
+        raise ValueError("The 'products' list cannot contain more than 1000 items.")
     body = {"shop_id": shop_id, "products": products}
     result = await api_post("/feeds/products/create", json=body)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 @mcp.tool()
 async def jumia_update_products(
-    products: List[Dict[str, Any]] = Field(..., description="Liste des produits à mettre à jour (avec id=productSid)"),
-    shop_id: Optional[str] = Field(default=None, description="UUID de la boutique (optionnel)")
+    products: List[Dict[str, Any]] = Field(..., description="List of products to update (with id=productSid)"),
+    shop_id: Optional[str] = Field(default=None, description="Shop UUID (optional)")
 ) -> str:
     """
-    Met à jour des produits existants via un feed.
-    Retourne l'ID du feed. Vous pouvez surveiller son statut avec jumia_get_feed_status.
+    Updates existing products via a feed.
+    Returns the feed ID. You can monitor its status with jumia_get_feed_status.
     [readOnlyHint: false]
     """
     if len(products) > 1000:
-        raise ValueError("La liste 'products' ne peut pas contenir plus de 1000 éléments.")
+        raise ValueError("The 'products' list cannot contain more than 1000 items.")
     body = {"products": products}
     if shop_id:
         body["shop_id"] = shop_id
@@ -282,64 +282,64 @@ async def jumia_update_products(
 
 @mcp.tool()
 async def jumia_update_stock(
-    products: List[Dict[str, Any]] = Field(..., description="Liste des stocks à mettre à jour ({sellerSku, id, stock})")
+    products: List[Dict[str, Any]] = Field(..., description="List of stocks to update ({sellerSku, id, stock})")
 ) -> str:
     """
-    Met à jour le stock des produits via un feed.
-    Retourne l'ID du feed. Vous pouvez surveiller son statut avec jumia_get_feed_status.
+    Updates product stock via a feed.
+    Returns the feed ID. You can monitor its status with jumia_get_feed_status.
     [readOnlyHint: false]
     """
     if len(products) > 1000:
-        raise ValueError("La liste 'products' ne peut pas contenir plus de 1000 éléments.")
+        raise ValueError("The 'products' list cannot contain more than 1000 items.")
     body = {"products": products}
     result = await api_post("/feeds/products/stock", json=body)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 @mcp.tool()
 async def jumia_update_price(
-    products: List[Dict[str, Any]] = Field(..., description="Liste des prix à mettre à jour ({price.currency, price.value, price.salePrice, etc.})")
+    products: List[Dict[str, Any]] = Field(..., description="List of prices to update ({price.currency, price.value, price.salePrice, etc.})")
 ) -> str:
     """
-    Met à jour les prix des produits via un feed.
-    Retourne l'ID du feed. Vous pouvez surveiller son statut avec jumia_get_feed_status.
+    Updates product prices via a feed.
+    Returns the feed ID. You can monitor its status with jumia_get_feed_status.
     [readOnlyHint: false]
     """
     if len(products) > 1000:
-        raise ValueError("La liste 'products' ne peut pas contenir plus de 1000 éléments.")
+        raise ValueError("The 'products' list cannot contain more than 1000 items.")
     body = {"products": products}
     result = await api_post("/feeds/products/price", json=body)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 @mcp.tool()
 async def jumia_update_product_status(
-    products: List[Dict[str, Any]] = Field(..., description="Liste des statuts à mettre à jour ({sellerSku, id, createdAt, businessClients})")
+    products: List[Dict[str, Any]] = Field(..., description="List of statuses to update ({sellerSku, id, createdAt, businessClients})")
 ) -> str:
     """
-    Met à jour le statut des produits via un feed.
-    Retourne l'ID du feed. Vous pouvez surveiller son statut avec jumia_get_feed_status.
+    Updates product status via a feed.
+    Returns the feed ID. You can monitor its status with jumia_get_feed_status.
     [readOnlyHint: false]
     """
     if len(products) > 1000:
-        raise ValueError("La liste 'products' ne peut pas contenir plus de 1000 éléments.")
+        raise ValueError("The 'products' list cannot contain more than 1000 items.")
     body = {"products": products}
     result = await api_post("/feeds/products/status", json=body)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 @mcp.tool()
 async def jumia_create_consignment_order(
-    shop_id: str = Field(..., description="UUID de la boutique"),
-    business_client_code: str = Field(..., description='Code de la plateforme, ex: "jumia-ma"'),
-    shipping_date: str = Field(..., description="Date d'expédition prévue"),
-    products: List[Dict[str, Any]] = Field(..., description="Liste des produits à expédier (max 2000)"),
-    comment: Optional[str] = Field(default=None, description="Commentaire optionnel")
+    shop_id: str = Field(..., description="Shop UUID"),
+    business_client_code: str = Field(..., description='Platform code, e.g., "jumia-ma"'),
+    shipping_date: str = Field(..., description="Expected shipping date"),
+    products: List[Dict[str, Any]] = Field(..., description="List of products to ship (max 2000)"),
+    comment: Optional[str] = Field(default=None, description="Optional comment")
 ) -> str:
     """
-    Crée une nouvelle commande de consignment (Fulfilment by Jumia).
-    Retourne le purchaseOrderNumber.
+    Creates a new consignment order (Fulfilment by Jumia).
+    Returns the purchaseOrderNumber.
     [readOnlyHint: false]
     """
     if len(products) > 2000:
-        raise ValueError("La liste 'products' ne peut pas contenir plus de 2000 éléments.")
+        raise ValueError("The 'products' list cannot contain more than 2000 items.")
     body: Dict[str, Any] = {
         "shop_id": shop_id,
         "business_client_code": business_client_code,
@@ -353,16 +353,16 @@ async def jumia_create_consignment_order(
 
 @mcp.tool()
 async def jumia_update_consignment_order(
-    purchase_order_number: str = Field(..., description="Le numéro de Commande (Purchase Order Number)"),
-    is_shipped: bool = Field(..., description="Indique si la commande a été expédiée"),
-    tracking_number: Optional[str] = Field(default=None, description="Numéro de suivi (requis si is_shipped=true)"),
-    actual_departure_date: Optional[str] = Field(default=None, description="Date de départ réelle"),
-    estimated_arrival_date: Optional[str] = Field(default=None, description="Date d'arrivée estimée"),
-    delivery_agent_phone: Optional[str] = Field(default=None, description="Téléphone de l'agent de livraison"),
-    three_pl_name: Optional[str] = Field(default=None, description="Nom du transporteur 3PL")
+    purchase_order_number: str = Field(..., description="The Purchase Order Number"),
+    is_shipped: bool = Field(..., description="Indicates whether the order has been shipped"),
+    tracking_number: Optional[str] = Field(default=None, description="Tracking number (required if is_shipped=true)"),
+    actual_departure_date: Optional[str] = Field(default=None, description="Actual departure date"),
+    estimated_arrival_date: Optional[str] = Field(default=None, description="Estimated arrival date"),
+    delivery_agent_phone: Optional[str] = Field(default=None, description="Delivery agent phone number"),
+    three_pl_name: Optional[str] = Field(default=None, description="Name of the 3PL carrier")
 ) -> str:
     """
-    Met à jour une commande de consignment (Fulfilment by Jumia) existante.
+    Updates an existing consignment order (Fulfilment by Jumia).
     [readOnlyHint: false]
     """
     body: Dict[str, Any] = {"is_shipped": is_shipped}
@@ -377,12 +377,12 @@ async def jumia_update_consignment_order(
 
 @mcp.tool()
 async def jumia_get_consignment_stock(
-    business_client_code: str = Field(..., description='Code de la plateforme, ex: "jumia-ma"'),
-    sku: str = Field(..., description="SKU du produit (Seller SKU)")
+    business_client_code: str = Field(..., description='Platform code, e.g., "jumia-ma"'),
+    sku: str = Field(..., description="Product SKU (Seller SKU)")
 ) -> str:
     """
-    Récupère l'état du stock de consignment (envoyé via Fulfilment).
-    Retourne : received, quarantined, defective, canceled, returned, failed.
+    Retrieves the status of consignment stock (sent via Fulfilment).
+    Returns: received, quarantined, defective, canceled, returned, failed.
     [readOnlyHint: true]
     """
     params = {
@@ -392,25 +392,25 @@ async def jumia_get_consignment_stock(
     result = await api_get("/consignment-stock", params=params)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
-# === Nouveau Bloc Orders (Commandes) ===
+# === New Orders Block ===
 
 @mcp.tool()
 async def jumia_get_orders(
-    status: Optional[str] = Field(default=None, description="Filtrer par statut"),
-    country: Optional[str] = Field(default=None, description="Code pays (ex: MA)"),
-    shop_id: Optional[str] = Field(default=None, description="UUID de la boutique"),
-    created_after: Optional[str] = Field(default=None, description="Date de création début"),
-    created_before: Optional[str] = Field(default=None, description="Date de création fin"),
-    updated_after: Optional[str] = Field(default=None, description="Date de mise à jour début"),
-    updated_before: Optional[str] = Field(default=None, description="Date de mise à jour fin"),
-    size: int = Field(default=10, le=300, description="Taille de la liste (max 300)"),
-    sort: Optional[str] = Field(default=None, description="Tri, ASC ou DESC"),
-    token: Optional[str] = Field(default=None, description="Token de pagination")
+    status: Optional[str] = Field(default=None, description="Filter by status"),
+    country: Optional[str] = Field(default=None, description="Country code (e.g., MA)"),
+    shop_id: Optional[str] = Field(default=None, description="Shop UUID"),
+    created_after: Optional[str] = Field(default=None, description="Creation date start"),
+    created_before: Optional[str] = Field(default=None, description="Creation date end"),
+    updated_after: Optional[str] = Field(default=None, description="Update date start"),
+    updated_before: Optional[str] = Field(default=None, description="Update date end"),
+    size: int = Field(default=10, le=300, description="List size (max 300)"),
+    sort: Optional[str] = Field(default=None, description="Sort, ASC or DESC"),
+    token: Optional[str] = Field(default=None, description="Pagination token")
 ) -> str:
     """
-    Récupère les commandes (GET /orders).
-    Important : sans filtre date (created_after/before ou updated_after/before), 
-    seules les commandes du jour sont retournées.
+    Retrieves orders (GET /orders).
+    Important: without date filters (created_after/before or updated_after/before), 
+    only today's orders are returned.
     [readOnlyHint: true]
     """
     params: Dict[str, Any] = {"size": size}
@@ -429,12 +429,12 @@ async def jumia_get_orders(
 
 @mcp.tool()
 async def jumia_get_order_items(
-    order_ids: List[str] = Field(..., description="Liste des IDs de commandes"),
-    status: Optional[str] = Field(default=None, description="Statut des articles"),
-    shop_id: Optional[str] = Field(default=None, description="UUID de la boutique")
+    order_ids: List[str] = Field(..., description="List of order IDs"),
+    status: Optional[str] = Field(default=None, description="Status of the items"),
+    shop_id: Optional[str] = Field(default=None, description="Shop UUID")
 ) -> str:
     """
-    Récupère les articles d'une liste de commandes (GET /orders/items).
+    Retrieves items for a list of orders (GET /orders/items).
     [readOnlyHint: true]
     """
     params: Dict[str, Any] = {"order_ids": order_ids}
@@ -445,10 +445,10 @@ async def jumia_get_order_items(
 
 @mcp.tool()
 async def jumia_get_shipment_providers(
-    order_item_ids: List[str] = Field(..., description="Liste des IDs d'articles (order items)")
+    order_item_ids: List[str] = Field(..., description="List of article IDs (order items)")
 ) -> str:
     """
-    Récupère les transporteurs disponibles (GET /orders/shipment-providers).
+    Retrieves available carriers (GET /orders/shipment-providers).
     [readOnlyHint: true]
     """
     params = {"order_item_ids": order_item_ids}
@@ -457,11 +457,11 @@ async def jumia_get_shipment_providers(
 
 @mcp.tool()
 async def jumia_pack_orders(
-    packages: List[Dict[str, Any]] = Field(..., description="Liste de packages ({orderItems, shipmentProviderId, trackingCode})")
+    packages: List[Dict[str, Any]] = Field(..., description="List of packages ({orderItems, shipmentProviderId, trackingCode})")
 ) -> str:
     """
-    Prépare et emballe des commandes (POST /v2/orders/pack).
-    Retourne entre autres success.packages[] et error.packages[].
+    Prepares and packs orders (POST /v2/orders/pack).
+    Returns success.packages[] and error.packages[] among other data.
     [readOnlyHint: false]
     """
     body = {"packages": packages}
@@ -470,10 +470,10 @@ async def jumia_pack_orders(
 
 @mcp.tool()
 async def jumia_ready_to_ship(
-    orderItemIds: List[str] = Field(..., description="Liste d'UUIDs d'articles")
+    orderItemIds: List[str] = Field(..., description="List of article UUIDs")
 ) -> str:
     """
-    Marque les articles comme 'Ready To Ship' (POST /orders/ready-to-ship).
+    Marks items as 'Ready To Ship' (POST /orders/ready-to-ship).
     [readOnlyHint: false]
     """
     body = {"orderItemIds": orderItemIds}
@@ -482,10 +482,10 @@ async def jumia_ready_to_ship(
 
 @mcp.tool()
 async def jumia_cancel_orders(
-    orderItemIds: List[str] = Field(..., description="Liste d'UUIDs d'articles à annuler")
+    orderItemIds: List[str] = Field(..., description="List of article UUIDs to cancel")
 ) -> str:
     """
-    Annule des articles de commande (PUT /orders/cancel).
+    Cancels order items (PUT /orders/cancel).
     [readOnlyHint: false]
     """
     body = {"orderItemIds": orderItemIds}
@@ -494,14 +494,14 @@ async def jumia_cancel_orders(
 
 @mcp.tool()
 async def jumia_print_labels(
-    orderItemIds: List[str] = Field(..., description="Liste d'UUIDs d'articles (max 200)")
+    orderItemIds: List[str] = Field(..., description="List of article UUIDs (max 200)")
 ) -> str:
     """
-    Affiche et retourne les étiquettes en base64 PDF (POST /orders/print-labels).
+    Displays and returns shipping labels in base64 PDF (POST /orders/print-labels).
     [readOnlyHint: false]
     """
     if len(orderItemIds) > 200:
-        raise ValueError("La liste 'orderItemIds' ne peut pas contenir plus de 200 éléments.")
+        raise ValueError("The 'orderItemIds' list cannot contain more than 200 items.")
     body = {"orderItemIds": orderItemIds}
     result = await api_post("/orders/print-labels", json=body)
     return json.dumps(result, indent=2, ensure_ascii=False)

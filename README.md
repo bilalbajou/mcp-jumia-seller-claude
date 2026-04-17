@@ -1,46 +1,46 @@
 # MCP Jumia Seller API
 
-Ce serveur Model Context Protocol (MCP) permet de connecter l'assistant Claude directement à l'API Vendor de Jumia. Il donne accès aux catalogues, aux boutiques, à la gestion des produits (feeds), au programme Jumia Express (Consignment/Fulfilment by Jumia) et à la gestion complète des commandes (Orders).
+This Model Context Protocol (MCP) server connects the Claude assistant directly to the Jumia Vendor API. It provides access to catalogs, shops, product management (feeds), the Jumia Express program (Consignment/Fulfilment by Jumia), and comprehensive order management.
 
 ## Installation
 
-1. Assurez-vous d'avoir Python 3.10+ installé.
-2. Ouvrez un terminal dans ce dossier et exécutez la commande suivante :
+1. Ensure you have Python 3.10+ installed.
+2. Open a terminal in this directory and run the following command:
    ```bash
    pip install "mcp[cli]" httpx pydantic python-dotenv
    ```
 
-## Configuration (Identifiants Jumia)
+## Configuration (Jumia Credentials)
 
-Pour communiquer avec l'API, vous devez générer des accès depuis votre Vendor Center Jumia :
+To communicate with the API, you must generate credentials from your Jumia Vendor Center:
 
-1. Connectez-vous à votre [Jumia Vendor Center].
-2. Allez dans **Settings** > **Integration Management** (ou API Configuration).
-3. Créez une application/API Key pour obtenir votre **Client ID**.
-4. Autorisez l'application pour générer un **Refresh Token** (celui-ci a une longue durée de vie et permet au serveur d'obtenir, de manière transparente, des Access Tokens jetables).
+1. Log in to your [Jumia Vendor Center].
+2. Go to **Settings** > **Integration Management** (or API Configuration).
+3. Create an application/API Key to get your **Client ID**.
+4. Authorize the application to generate a **Refresh Token** (this has a long lifespan and allows the server to seamlessly obtain disposable Access Tokens).
 
-Une fois récupérés, créez un fichier `.env` dans ce dossier :
+Once retrieved, create a `.env` file in this directory:
 ```
 JUMIA_CLIENT_ID=your_client_id
 JUMIA_REFRESH_TOKEN=your_refresh_token
 ```
 
-## Connexion à Claude Code / Claude Desktop
+## Connecting to Claude Code / Claude Desktop
 
-### Option 1 — Commande CLI (recommandée)
+### Option 1 — CLI Command (Recommended)
 
 ```bash
-claude mcp add jumia-seller 
-  --env JUMIA_CLIENT_ID=your_client_id 
-  --env JUMIA_REFRESH_TOKEN=your_refresh_token 
+claude mcp add jumia-seller \
+  --env JUMIA_CLIENT_ID=your_client_id \
+  --env JUMIA_REFRESH_TOKEN=your_refresh_token \
   python "d:/own project/mcp-jumia-seller/server.py"
 ```
 
-> Si le fichier `.env` est déjà renseigné, omettez les flags `--env`.
+> If the `.env` file is already populated, omit the `--env` flags.
 
-### Option 2 — Fichier de configuration manuel
+### Option 2 — Manual Configuration File
 
-Ajoutez ce bloc dans `~/.claude/claude_desktop_config.json` :
+Add this block to `~/.claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -59,37 +59,37 @@ Ajoutez ce bloc dans `~/.claude/claude_desktop_config.json` :
 }
 ```
 
-*Supprimez le bloc `"env"` si vous utilisez le fichier `.env` du projet.*
+*Remove the `"env"` block if you are using the project's `.env` file.*
 
-### Vérification
+### Verification
 
 ```bash
-claude mcp list        # doit afficher jumia-seller comme "connected"
+claude mcp list        # should list jumia-seller as "connected"
 ```
 
-Ou dans une session Claude Code, tapez `/mcp` pour voir les outils disponibles.
+Or within a Claude Code session, type `/mcp` to see the available tools.
 
-## Exemples de Prompts pour Claude
+## Prompt Examples for Claude
 
-Une fois le serveur MCP lancé et reconnu, l'assistant Claude est capable d'orchestrer plusieurs appels d'API Jumia en arrière-plan pour accomplir des tâches complexes. Parlez-lui simplement en langage naturel !
+Once the MCP server is launched and recognized, the Claude assistant can orchestrate multiple Jumia API calls in the background to handle complex tasks. Just talk to it in natural language!
 
-1. **Gestion globale du compte :**
-   > *"Affiche la liste de toutes les boutiques rattachées à mon compte Jumia et vérifie s'il y a des Master Shops."*
+1. **Global Account Management:**
+   > *"Display the list of all shops linked to my Jumia account and verify if there are any Master Shops."*
 
-2. **Recherche de références (Catégories et Attributs) :**
-   > *"Quelles sont les catégories disponibles pour les téléphones portables ? Trouve-moi l'ID de la catégorie 'Smartphones' et liste les attributs obligatoires requis pour y créer un produit."*
+2. **Reference Search (Categories and Attributes):**
+   > *"What categories are available for mobile phones? Find me the ID for the 'Smartphones' category and list the mandatory attributes required to create a product there."*
 
-3. **Suivi des produits et de l'inventaire :**
-   > *"Récupère les 20 derniers produits ajoutés à ma boutique 'jumia-ci' et génère un tableau croisant leurs SKUs vendeurs avec l'état de leur stock actuel."*
+3. **Product and Inventory Tracking:**
+   > *"Retrieve the last 20 products added to my 'jumia-ci' shop and generate a table cross-referencing their seller SKUs with their current stock status."*
 
-4. **Création et mise à jour de produits (Feeds) :**
-   > *"Je veux baisser le prix de 10% pour les 3 SKUs suivants : [SKU1, SKU2, SKU3]. Utilise l'outil de mise à jour de prix, soumets le feed et surveille son statut jusqu'à ce qu'il soit validé."*
-   > *"Désactive temporairement mon produit 'CASQUE-X1' sur la boutique en modifiant son statut (active = false)."*
+4. **Product Creation and Updates (Feeds):**
+   > *"I want to lower the price by 10% for the following 3 SKUs: [SKU1, SKU2, SKU3]. Use the price update tool, submit the feed, and monitor its status until it is validated."*
+   > *"Temporarily disable my 'CASQUE-X1' product on the shop by modifying its status (active = false)."*
 
-5. **Expédier en mode Fulfilment (Jumia Express / FBJ) :**
-   > *"Prépare une commande d'expédition (Consignment order) FBJ vers l'entrepôt Jumia pour la semaine prochaine avec 50 unités de la référence 'TSHIRT-BLK'. Ensuite, vérifie l'état actuel de mon stock actuellement 'quarantined' ou 'defective' pour ce même SKU."*
+5. **Fulfilment Shipping (Jumia Express / FBJ):**
+   > *"Prepare an FBJ consignment order to the Jumia warehouse for next week with 50 units of the 'TSHIRT-BLK' reference. Then, check the current status of my 'quarantined' or 'defective' stock for this same SKU."*
 
-6. **Préparation complète des commandes (Orders) :**
-   > *"Trouve toutes mes commandes en attente de la journée, vérifie leurs articles et marque-les comme prêtes à être expédiées. Enfin, imprime l'ensemble de leurs étiquettes d'expédition au format base64/PDF."*
-   > *"Quels sont les transporteurs (shipment providers) disponibles pour expédier la commande X ? Emballe les produits (pack order) avec le premier transporteur de la liste."*
-   > *"Annule le ou les articles de la commande ID '123456789' car une erreur a été remontée."*
+6. **Complete Order Preparation:**
+   > *"Find all my pending orders for today, check their items, and mark them as ready to ship. Finally, print all of their shipping labels in base64/PDF format."*
+   > *"What shipment providers are available to ship order X? Pack the order items using the first provided carrier from the list."*
+   > *"Cancel the item(s) from order ID '123456789' because an error was reported."*
