@@ -69,6 +69,14 @@ claude mcp list        # should list jumia-seller as "connected"
 
 Or within a Claude Code session, type `/mcp` to see the available tools.
 
+## Important API Behaviours
+
+- **Rate limit:** 200 requests/minute, 4 requests/second per mastershop. Exceeding this returns HTTP 429.
+- **Feed creation vs. update:** `GET /feeds/{id}` does not return `productSid` for `PRODUCT_CREATION` feeds. Call `jumia_get_products` after creation to retrieve the SID needed for future updates.
+- **Product update restrictions:** The following fields are silently ignored by `jumia_update_products`: Main Image, Main Category, Parent SKU, Global Sale Price, Initial Stock.
+- **Order date scope:** `jumia_get_orders` returns only today's orders when no date filter (`created_after`/`created_before` or `updated_after`/`updated_before`) is provided.
+- **Access token TTL:** 12 hours. The server caches it in memory and auto-refreshes it transparently using the Refresh Token.
+
 ## Prompt Examples for Claude
 
 Once the MCP server is launched and recognized, the Claude assistant can orchestrate multiple Jumia API calls in the background to handle complex tasks. Just talk to it in natural language!

@@ -198,7 +198,8 @@ async def jumia_get_products(
     shop_id: Optional[str] = Field(default=None, description="Filter by Shop ID"),
     category_code: Optional[str] = Field(default=None, description="Filter by Category Code"),
     created_at_from: Optional[str] = Field(default=None, description="Creation date (start)"),
-    created_at_to: Optional[str] = Field(default=None, description="Creation date (end)")
+    created_at_to: Optional[str] = Field(default=None, description="Creation date (end)"),
+    sids: Optional[List[str]] = Field(default=None, description="Filter by Product SIDs (list of UUIDs)")
 ) -> str:
     """
     Retrieves the list of products from the Jumia catalog.
@@ -207,12 +208,13 @@ async def jumia_get_products(
     """
     params: Dict[str, Any] = {"size": size}
     if token is not None: params["token"] = token
-    if seller_sku is not None: params["seller_sku"] = seller_sku
-    if shop_id is not None: params["shop_id"] = shop_id
-    if category_code is not None: params["category_code"] = category_code
-    if created_at_from is not None: params["created_at_from"] = created_at_from
-    if created_at_to is not None: params["created_at_to"] = created_at_to
-    
+    if seller_sku is not None: params["sellerSku"] = seller_sku
+    if shop_id is not None: params["shopId"] = shop_id
+    if category_code is not None: params["categoryCode"] = category_code
+    if created_at_from is not None: params["createdAtFrom"] = created_at_from
+    if created_at_to is not None: params["createdAtTo"] = created_at_to
+    if sids is not None: params["sids"] = sids
+
     result = await api_get("/catalog/products", params=params)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
